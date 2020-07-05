@@ -15,47 +15,62 @@ public class Pipeline {
     }
 
     public void run(Project project) {
-        boolean testsPassed;
-        boolean deploySuccessful;
-
+        boolean testsPassed = false;
         if (project.hasTests()) {
-            if ("success".equals(project.runTests())) {
-                log.info("Tests passed");
-                testsPassed = true;
-            } else {
-                log.error("Tests failed");
-                testsPassed = false;
-            }
+            testsPassed = runTests(project);
         } else {
             log.info("No tests");
             testsPassed = true;
         }
 
+        boolean deploySuccessful = false;
         if (testsPassed) {
-            if ("success".equals(project.deploy())) {
-                log.info("Deployment successful");
-                deploySuccessful = true;
-            } else {
-                log.error("Deployment failed");
-                deploySuccessful = false;
-            }
-        } else {
-            deploySuccessful = false;
+            deploySuccessful = deploy(project);
         }
 
         if (config.sendEmailSummary()) {
-            log.info("Sending email");
-            if (testsPassed) {
-                if (deploySuccessful) {
-                    emailer.send("Deployment completed successfully");
-                } else {
-                    emailer.send("Deployment failed");
-                }
-            } else {
-                emailer.send("Tests failed");
-            }
+            sendEmail(testsPassed, deploySuccessful);
         } else {
             log.info("Email disabled");
         }
     }
+
+    private boolean runTests(Project project) {
+        if ("success".equals(project.runTests())) {
+            log.info("Tests passed");
+            return true;
+        } else {
+            log.error("Tests failed");
+            return false;
+        }
+    }
+
+    private boolean deploy(Project project) {
+        if ("success".equals(project.deploy())) {
+            log.info("Deployment successful");
+            return true;
+        }
+        log.error("Deployment failed");
+        return false;
+    }
+
+    private void sendEmail(boolean testsPassed, boolean deploySuccessful) {
+        log.info("Sending email");
+        if (testsPassed && deploySuccessful) {
+            emailer.send("Deployment completed successfully");
+            return;
+        }
+        if (!testsPassed) {
+            emailer.send("Tests failed");
+            return;
+        }
+        if (!deploySuccessful) {
+            emailer.send("Deployment failed");
+            return;
+        }
+    }
+
+
+
+
 }
