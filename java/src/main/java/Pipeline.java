@@ -15,62 +15,30 @@ public class Pipeline {
     }
 
     public void run(Project project) {
-        boolean testsPassed = false;
-        if (project.hasTests()) {
-            testsPassed = runTests(project);
-        } else {
-            log.info("No tests");
-            testsPassed = true;
-        }
+        DeployStep deployStep = new DeployStep(null, log);
+        PipelineStep pipelineSteps = new TestsStep(deployStep, log);
 
-        boolean deploySuccessful = false;
-        if (testsPassed) {
-            deploySuccessful = deploy(project);
-        }
+        PipelineStatus pipelineStatus = pipelineSteps.run(project, PipelineStatus.empty());
 
         if (config.sendEmailSummary()) {
-            sendEmail(testsPassed, deploySuccessful);
+            sendEmail(pipelineStatus);
         } else {
             log.info("Email disabled");
         }
     }
 
-    private boolean runTests(Project project) {
-        if ("success".equals(project.runTests())) {
-            log.info("Tests passed");
-            return true;
-        } else {
-            log.error("Tests failed");
-            return false;
-        }
-    }
-
-    private boolean deploy(Project project) {
-        if ("success".equals(project.deploy())) {
-            log.info("Deployment successful");
-            return true;
-        }
-        log.error("Deployment failed");
-        return false;
-    }
-
-    private void sendEmail(boolean testsPassed, boolean deploySuccessful) {
+    private void sendEmail(PipelineStatus pipelineStatus) {
         log.info("Sending email");
-        if (testsPassed && deploySuccessful) {
+        if (pipelineStatus.testsPassed && pipelineStatus.deploySuccessful) {
             emailer.send("Deployment completed successfully");
             return;
         }
-        if (!testsPassed) {
+        if (!pipelineStatus.testsPassed) {
             emailer.send("Tests failed");
             return;
         }
-        if (!deploySuccessful) {
-            emailer.send("Deployment failed");
-            return;
-        }
+        emailer.send("Deployment failed");
     }
-
-
 
 
 }
